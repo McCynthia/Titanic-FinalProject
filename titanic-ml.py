@@ -1,9 +1,11 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.metrics import accuracy_score, classification_report
+from sklearn.linear_model import LogisticRegression
 
 # Read the training and test datasets from CSV files
 train_df = pd.read_csv('train.csv')
@@ -11,11 +13,8 @@ test_df = pd.read_csv('test.csv')
 
 # Function to fill missing values in a dataframe
 def fill_missing_values(df):
-    # Fill missing values in 'Age' with the median age
     df['Age'].fillna(df['Age'].median(), inplace=True)
-    # Fill missing values in 'Embarked' with the most common embarkation port
     df['Embarked'].fillna(df['Embarked'].mode()[0], inplace=True)
-    # Fill missing values in 'Fare' with the median fare
     df['Fare'].fillna(df['Fare'].median(), inplace=True)
     return df
 
@@ -29,11 +28,8 @@ test_df.drop(['Cabin'], axis=1, inplace=True)
 
 # Function to convert categorical variables to numerical
 def encode_categorical(df):
-    # Create a LabelEncoder object
     label_encoder = LabelEncoder()
-    # Convert 'Sex' column to numerical values (0 or 1)
     df['Sex'] = label_encoder.fit_transform(df['Sex'])
-    # Convert 'Embarked' column to numerical values (0, 1, 2)
     df['Embarked'] = label_encoder.fit_transform(df['Embarked'])
     return df
 
@@ -41,15 +37,10 @@ def encode_categorical(df):
 train_df = encode_categorical(train_df)
 test_df = encode_categorical(test_df)
 
-# Function to perform feature engineering (create new features and modify existing ones)
+# Function to perform feature engineering
 def feature_engineering(df):
-    # Create a new feature 'FamilySize' by adding 'SibSp' (siblings/spouses) and 'Parch'(parents/children) plus 1 (the passenger themselves)
     df['FamilySize'] = df['SibSp'] + df['Parch'] + 1
-    
-    # Extract titles from names
     df['Title'] = df['Name'].apply(lambda x: x.split(',')[1].split('.')[0].strip())
-    
-    # Map titles to numerical categories
     title_mapping = {
         'Mr': 1, 'Miss': 2, 'Mrs': 3, 'Master': 4, 'Dr': 5, 'Rev': 6, 'Col': 7,
         'Major': 7, 'Mlle': 8, 'Countess': 9, 'Ms': 8, 'Lady': 9, 'Jonkheer': 10,
@@ -57,10 +48,7 @@ def feature_engineering(df):
     }
     df['Title'] = df['Title'].map(title_mapping)
     df['Title'].fillna(0, inplace=True)
-    
-    # Drop columns that are not needed for the model
-    df.drop(['Name', 'Ticket', 'PassengerId'], axis=1, inplace=True)
-    
+    df.drop(['Name', 'Ticket'], axis=1, inplace=True)
     return df
 
 # Apply the feature engineering function to both train and test dataframes
@@ -71,49 +59,102 @@ test_df = feature_engineering(test_df)
 test_df['Survived'] = 0  # Add a dummy 'Survived' column to align columns
 test_df = test_df[train_df.columns]
 
-# Display the first few rows of the cleaned and processed data
-# print(train_df.head())
-# print(test_df.head())
+# Normalizing numerical features
+scaler = StandardScaler()
+numerical_features = ['Age', 'Fare', 'FamilySize']
+train_df[numerical_features] = scaler.fit_transform(train_df[numerical_features])
+test_df[numerical_features] = scaler.transform(test_df[numerical_features])
 
-# Save the cleaned and processed data to new CSV files
-train_df.to_csv('cleaned_train.csv', index=False)
-test_df.to_csv('cleaned_test.csv', index=False)
-
-# Feature selection using RandomForest to determine feature importance
+# Feature selection
 X = train_df.drop('Survived', axis=1)
 y = train_df['Survived']
 
 # Split the data into training and validation sets
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Train a RandomForestClassifier
-rf = RandomForestClassifier(n_estimators=100, random_state=42)
+###### Random Forest ######
+
+# Parameter tuning for Random Forest
+param_grid_rf = {'n_estimators': [100, 200, 300],
+                 'max_depth': [None, 10, 20, 30]}
+rf = RandomForestClassifier(random_state=42)
+grid_search_rf = GridSearchCV(rf, param_grid_rf, cv=5)
+grid_search_rf.fit(X_train, y_train)
+
+# Get the best parameters
+best_params_rf = grid_search_rf.best_params_
+
+# Train Random Forest with the best parameters
+rf = RandomForestClassifier(n_estimators=best_params_rf['n_estimators'], max_depth=best_params_rf['max_depth'], random_state=42)
 rf.fit(X_train, y_train)
 
-# Get feature importances from the RandomForest model
-importances = rf.feature_importances_
-feature_names = X.columns
-feature_importances = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
-feature_importances = feature_importances.sort_values(by='Importance', ascending=False)
+# Evaluate Random Forest model performance
+y_pred_rf = rf.predict(X_val)
+accuracy_rf = accuracy_score(y_val, y_pred_rf)
+print(f"Random Forest model accuracy: {accuracy_rf}")
+print(classification_report(y_val, y_pred_rf))
 
-print("Feature importances:")
-print(feature_importances)
+###### K-Nearest Neighbor ######
 
-# Select top features based on importance
-top_features = feature_importances[feature_importances['Importance'] > 0.05]['Feature'].tolist()
-print("Top features:", top_features)
+# Parameter tuning for KNN
+param_grid_knn = {'n_neighbors': np.arange(1, 30)}
+knn = KNeighborsClassifier()
+grid_search_knn = GridSearchCV(knn, param_grid_knn, cv=5)
+grid_search_knn.fit(X_train, y_train)
 
-# Evaluate model performance using top features
-X_train_top = X_train[top_features]
-X_val_top = X_val[top_features]
+# Get the best parameter
+best_k = grid_search_knn.best_params_['n_neighbors']
 
-rf_top = RandomForestClassifier(n_estimators=100, random_state=42)
-rf_top.fit(X_train_top, y_train)
+# Train KNN with the best parameter
+knn = KNeighborsClassifier(n_neighbors=best_k)
 
-y_pred_top = rf_top.predict(X_val_top)
-accuracy_top = accuracy_score(y_val, y_pred_top)
+# Normalizing numerical features for KNN
+scaler_knn = StandardScaler()
+numerical_features = ['Age', 'Fare', 'FamilySize']  # Specify numerical features
+X_train_scaled = scaler_knn.fit_transform(X_train[numerical_features])  # Apply scaler to training data
+X_val_scaled = scaler_knn.transform(X_val[numerical_features])  # Apply scaler to validation data
+test_df_scaled = scaler_knn.transform(test_df[numerical_features])  # Apply scaler to test data
 
-print(f"Model accuracy with top features: {accuracy_top}")
+# Train KNN with the best parameter using scaled features
+knn.fit(X_train_scaled, y_train)
 
-# You can try different combinations of features based on their importance
-# and evaluate how they impact the model's performance as shown above.
+# Evaluate KNN model performance on scaled validation data
+y_pred_knn = knn.predict(X_val_scaled)
+accuracy_knn = accuracy_score(y_val, y_pred_knn)
+print(f"KNN model accuracy: {accuracy_knn}")
+print(classification_report(y_val, y_pred_knn))
+
+# Predict survival on test data using both models
+rf_pred_test = rf.predict(test_df.drop('Survived', axis=1))
+knn_pred_test = knn.predict(test_df_scaled)  # Use scaled test data for KNN prediction
+
+###### Logistic Regression ######
+
+# Parameter tuning for Logistic Regression (if needed)
+param_grid_lr = {'C': [0.001, 0.01, 0.1, 1, 10, 100]}
+lr = LogisticRegression(max_iter=1000)  # Increase max_iter if needed
+grid_search_lr = GridSearchCV(lr, param_grid_lr, cv=5)
+grid_search_lr.fit(X_train, y_train)
+
+# Get the best parameter
+best_c = grid_search_lr.best_params_['C']
+
+# Train Logistic Regression with the best parameter
+lr = LogisticRegression(C=best_c, max_iter=1000)
+lr.fit(X_train, y_train)
+
+# Evaluate Logistic Regression model performance
+y_pred_lr = lr.predict(X_val)
+accuracy_lr = accuracy_score(y_val, y_pred_lr)
+print(f"Logistic Regression model accuracy: {accuracy_lr}")
+print(classification_report(y_val, y_pred_lr))
+
+# Predict survival on test data using Logistic Regression model
+lr_pred_test = lr.predict(test_df.drop('Survived', axis=1))
+
+# Save predictions to CSV files
+test_df['Survived_RF'] = rf_pred_test
+test_df['Survived_KNN'] = knn_pred_test
+test_df['Survived_LR'] = lr_pred_test
+test_df.to_csv('predictions.csv', index=False)
+
