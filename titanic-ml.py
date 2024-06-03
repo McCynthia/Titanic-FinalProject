@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 
 # Read the training and test datasets from CSV files
 train_df = pd.read_csv('train.csv')
@@ -40,7 +43,7 @@ test_df = encode_categorical(test_df)
 
 # Function to perform feature engineering (create new features and modify existing ones)
 def feature_engineering(df):
-    # Create a new feature 'FamilySize' by adding 'SibSp' (siblings/spouses) and 'Parch'(parents/children) plus 1 (the passanger themselves)
+    # Create a new feature 'FamilySize' by adding 'SibSp' (siblings/spouses) and 'Parch'(parents/children) plus 1 (the passenger themselves)
     df['FamilySize'] = df['SibSp'] + df['Parch'] + 1
     
     # Extract titles from names
@@ -69,9 +72,48 @@ test_df['Survived'] = 0  # Add a dummy 'Survived' column to align columns
 test_df = test_df[train_df.columns]
 
 # Display the first few rows of the cleaned and processed data
-print(train_df.head())
-print(test_df.head())
+# print(train_df.head())
+# print(test_df.head())
 
 # Save the cleaned and processed data to new CSV files
 train_df.to_csv('cleaned_train.csv', index=False)
 test_df.to_csv('cleaned_test.csv', index=False)
+
+# Feature selection using RandomForest to determine feature importance
+X = train_df.drop('Survived', axis=1)
+y = train_df['Survived']
+
+# Split the data into training and validation sets
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train a RandomForestClassifier
+rf = RandomForestClassifier(n_estimators=100, random_state=42)
+rf.fit(X_train, y_train)
+
+# Get feature importances from the RandomForest model
+importances = rf.feature_importances_
+feature_names = X.columns
+feature_importances = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+feature_importances = feature_importances.sort_values(by='Importance', ascending=False)
+
+print("Feature importances:")
+print(feature_importances)
+
+# Select top features based on importance
+top_features = feature_importances[feature_importances['Importance'] > 0.05]['Feature'].tolist()
+print("Top features:", top_features)
+
+# Evaluate model performance using top features
+X_train_top = X_train[top_features]
+X_val_top = X_val[top_features]
+
+rf_top = RandomForestClassifier(n_estimators=100, random_state=42)
+rf_top.fit(X_train_top, y_train)
+
+y_pred_top = rf_top.predict(X_val_top)
+accuracy_top = accuracy_score(y_val, y_pred_top)
+
+print(f"Model accuracy with top features: {accuracy_top}")
+
+# You can try different combinations of features based on their importance
+# and evaluate how they impact the model's performance as shown above.
