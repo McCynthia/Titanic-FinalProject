@@ -6,6 +6,9 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.linear_model import LogisticRegression
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
 
 # Read the training and test datasets from CSV files
 train_df = pd.read_csv('train.csv')
@@ -158,3 +161,34 @@ test_df['Survived_KNN'] = knn_pred_test
 test_df['Survived_LR'] = lr_pred_test
 test_df.to_csv('predictions.csv', index=False)
 
+###### Visualization ######
+
+# Confusion Matrix Visualization
+def plot_confusion_matrix(y_true, y_pred, title, filename=None):
+    cm = confusion_matrix(y_true, y_pred)
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False)
+    plt.title(title)
+    plt.xlabel('Predicted labels')
+    plt.ylabel('True labels')
+    if filename:
+        plt.savefig(filename)
+    plt.show()
+
+# Plot Confusion Matrix for each model and save them
+plot_confusion_matrix(y_val, y_pred_rf, 'Random Forest Confusion Matrix', 'rf_confusion_matrix.png')
+plot_confusion_matrix(y_val, y_pred_knn, 'KNN Confusion Matrix', 'knn_confusion_matrix.png')
+plot_confusion_matrix(y_val, y_pred_lr, 'Logistic Regression Confusion Matrix', 'lr_confusion_matrix.png')
+
+# Accuracy Comparison Plot
+models = ['Random Forest', 'KNN', 'Logistic Regression']
+accuracies = [accuracy_rf, accuracy_knn, accuracy_lr]
+
+plt.figure(figsize=(8, 6))
+plt.bar(models, accuracies, color=['blue', 'orange', 'green'])
+plt.xlabel('Models')
+plt.ylabel('Accuracy')
+plt.title('Accuracy Comparison of Different Models')
+plt.ylim(0.0, 1.0)
+plt.savefig('accuracy_comparison.png')
+plt.show()
