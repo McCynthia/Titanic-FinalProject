@@ -6,6 +6,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC  # Import SVM class
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
@@ -127,10 +128,6 @@ accuracy_knn = accuracy_score(y_val, y_pred_knn)
 print(f"KNN model accuracy: {accuracy_knn}")
 print(classification_report(y_val, y_pred_knn))
 
-# Predict survival on test data using both models
-rf_pred_test = rf.predict(test_df.drop('Survived', axis=1))
-knn_pred_test = knn.predict(test_df_scaled)  # Use scaled test data for KNN prediction
-
 ###### Logistic Regression ######
 
 # Parameter tuning for Logistic Regression (if needed)
@@ -152,13 +149,38 @@ accuracy_lr = accuracy_score(y_val, y_pred_lr)
 print(f"Logistic Regression model accuracy: {accuracy_lr}")
 print(classification_report(y_val, y_pred_lr))
 
-# Predict survival on test data using Logistic Regression model
+###### Support Vector Machine ######
+
+# Parameter tuning for SVM
+param_grid_svm = {'C': [0.1, 1, 10, 100], 'gamma': [1, 0.1, 0.01, 0.001], 'kernel': ['rbf']}
+svm = SVC()
+grid_search_svm = GridSearchCV(svm, param_grid_svm, cv=5)
+grid_search_svm.fit(X_train, y_train)
+
+# Get the best parameters
+best_params_svm = grid_search_svm.best_params_
+
+# Train SVM with the best parameters
+svm = SVC(C=best_params_svm['C'], gamma=best_params_svm['gamma'], kernel=best_params_svm['kernel'])
+svm.fit(X_train, y_train)
+
+# Evaluate SVM model performance
+y_pred_svm = svm.predict(X_val)
+accuracy_svm = accuracy_score(y_val, y_pred_svm)
+print(f"SVM model accuracy: {accuracy_svm}")
+print(classification_report(y_val, y_pred_svm))
+
+# Predict survival on test data using all models
+rf_pred_test = rf.predict(test_df.drop('Survived', axis=1))
+knn_pred_test = knn.predict(test_df_scaled)  # Use scaled test data for KNN prediction
 lr_pred_test = lr.predict(test_df.drop('Survived', axis=1))
+svm_pred_test = svm.predict(test_df.drop('Survived', axis=1))
 
 # Save predictions to CSV files
 test_df['Survived_RF'] = rf_pred_test
 test_df['Survived_KNN'] = knn_pred_test
 test_df['Survived_LR'] = lr_pred_test
+test_df['Survived_SVM'] = svm_pred_test
 test_df.to_csv('predictions.csv', index=False)
 
 ###### Visualization ######
@@ -179,16 +201,18 @@ def plot_confusion_matrix(y_true, y_pred, title, filename=None):
 plot_confusion_matrix(y_val, y_pred_rf, 'Random Forest Confusion Matrix', 'rf_confusion_matrix.png')
 plot_confusion_matrix(y_val, y_pred_knn, 'KNN Confusion Matrix', 'knn_confusion_matrix.png')
 plot_confusion_matrix(y_val, y_pred_lr, 'Logistic Regression Confusion Matrix', 'lr_confusion_matrix.png')
+plot_confusion_matrix(y_val, y_pred_svm, 'SVM Confusion Matrix', 'svm_confusion_matrix.png')
 
 # Accuracy Comparison Plot
-models = ['Random Forest', 'KNN', 'Logistic Regression']
-accuracies = [accuracy_rf, accuracy_knn, accuracy_lr]
+models = ['Random Forest', 'KNN', 'Logistic Regression', 'SVM']
+accuracies = [accuracy_rf, accuracy_knn, accuracy_lr, accuracy_svm]
 
 plt.figure(figsize=(8, 6))
-plt.bar(models, accuracies, color=['blue', 'orange', 'green'])
+plt.bar(models, accuracies, color=['blue', 'orange', 'green', 'red'])
 plt.xlabel('Models')
 plt.ylabel('Accuracy')
 plt.title('Accuracy Comparison of Different Models')
 plt.ylim(0.0, 1.0)
 plt.savefig('accuracy_comparison.png')
 plt.show()
+
