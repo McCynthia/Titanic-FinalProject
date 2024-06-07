@@ -153,7 +153,7 @@ print(classification_report(y_val, y_pred_lr))
 
 # Parameter tuning for SVM
 param_grid_svm = {'C': [0.1, 1, 10, 100], 'gamma': [1, 0.1, 0.01, 0.001], 'kernel': ['rbf']}
-svm = SVC()
+svm = SVC(class_weight='balanced')  # Add class_weight='balanced'
 grid_search_svm = GridSearchCV(svm, param_grid_svm, cv=5)
 grid_search_svm.fit(X_train, y_train)
 
@@ -161,7 +161,7 @@ grid_search_svm.fit(X_train, y_train)
 best_params_svm = grid_search_svm.best_params_
 
 # Train SVM with the best parameters
-svm = SVC(C=best_params_svm['C'], gamma=best_params_svm['gamma'], kernel=best_params_svm['kernel'])
+svm = SVC(C=best_params_svm['C'], gamma=best_params_svm['gamma'], kernel=best_params_svm['kernel'], class_weight='balanced')
 svm.fit(X_train, y_train)
 
 # Evaluate SVM model performance
@@ -170,11 +170,18 @@ accuracy_svm = accuracy_score(y_val, y_pred_svm)
 print(f"SVM model accuracy: {accuracy_svm}")
 print(classification_report(y_val, y_pred_svm))
 
+# Check class distribution in predictions
+print("Class distribution in SVM predictions (validation set):", np.bincount(y_pred_svm))
+
 # Predict survival on test data using all models
 rf_pred_test = rf.predict(test_df.drop('Survived', axis=1))
 knn_pred_test = knn.predict(test_df_scaled)  # Use scaled test data for KNN prediction
 lr_pred_test = lr.predict(test_df.drop('Survived', axis=1))
 svm_pred_test = svm.predict(test_df.drop('Survived', axis=1))
+
+# Check class distribution in test predictions
+print("Class distribution in SVM predictions (test set):", np.bincount(svm_pred_test))
+
 
 # Save predictions to CSV files
 test_df['Survived_RF'] = rf_pred_test
