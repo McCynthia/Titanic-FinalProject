@@ -153,7 +153,7 @@ print(classification_report(y_val, y_pred_lr))
 
 # Parameter tuning for SVM
 param_grid_svm = {'C': [0.1, 1, 10, 100], 'gamma': [1, 0.1, 0.01, 0.001], 'kernel': ['rbf']}
-svm = SVC(class_weight='balanced')  # Add class_weight='balanced'
+svm = SVC(class_weight='balanced')
 grid_search_svm = GridSearchCV(svm, param_grid_svm, cv=5)
 grid_search_svm.fit(X_train, y_train)
 
@@ -167,7 +167,7 @@ svm.fit(X_train, y_train)
 # Evaluate SVM model performance
 y_pred_svm = svm.predict(X_val)
 accuracy_svm = accuracy_score(y_val, y_pred_svm)
-print(f"SVM model accuracy: {accuracy_svm}")
+print(f"SVM model accuracy with further tuning: {accuracy_svm}")
 print(classification_report(y_val, y_pred_svm))
 
 # Check class distribution in predictions
