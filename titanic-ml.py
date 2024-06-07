@@ -182,13 +182,16 @@ svm_pred_test = svm.predict(test_df.drop('Survived', axis=1))
 # Check class distribution in test predictions
 print("Class distribution in SVM predictions (test set):", np.bincount(svm_pred_test))
 
-
 # Save predictions to CSV files
 test_df['Survived_RF'] = rf_pred_test
 test_df['Survived_KNN'] = knn_pred_test
 test_df['Survived_LR'] = lr_pred_test
 test_df['Survived_SVM'] = svm_pred_test
-test_df.to_csv('predictions.csv', index=False)
+
+# Save predictions to CSV
+predictions_df = test_df[['PassengerId', 'Survived_RF', 'Survived_KNN', 'Survived_LR', 'Survived_SVM']]
+predictions_df.to_csv('predictions.csv', index=False)
+
 
 ###### Visualization ######
 
@@ -222,4 +225,3 @@ plt.title('Accuracy Comparison of Different Models')
 plt.ylim(0.0, 1.0)
 plt.savefig('accuracy_comparison.png')
 plt.show()
-
