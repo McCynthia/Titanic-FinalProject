@@ -57,7 +57,7 @@ Splits the data into features (X) and target (y).
 ## How to Run
 Make sure the train.csv and test.csv are in the same directory as the script.
 
-Run the script using Python: `python titanic-ml.py`
+Run the script using Python: `python3 titanic-ml.py`
 
 ## Output
 Model Accuracy and Classification Reports: 
