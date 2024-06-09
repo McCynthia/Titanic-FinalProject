@@ -170,17 +170,11 @@ accuracy_svm = accuracy_score(y_val, y_pred_svm)
 print(f"SVM model accuracy with further tuning: {accuracy_svm}")
 print(classification_report(y_val, y_pred_svm))
 
-# Check class distribution in predictions
-print("Class distribution in SVM predictions (validation set):", np.bincount(y_pred_svm))
-
 # Predict survival on test data using all models
 rf_pred_test = rf.predict(test_df.drop('Survived', axis=1))
 knn_pred_test = knn.predict(test_df_scaled)  # Use scaled test data for KNN prediction
 lr_pred_test = lr.predict(test_df.drop('Survived', axis=1))
 svm_pred_test = svm.predict(test_df.drop('Survived', axis=1))
-
-# Check class distribution in test predictions
-print("Class distribution in SVM predictions (test set):", np.bincount(svm_pred_test))
 
 # Save predictions to CSV files
 test_df['Survived_RF'] = rf_pred_test
